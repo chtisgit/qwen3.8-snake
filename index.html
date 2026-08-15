@@ -229,8 +229,7 @@ function reset(){ snake=[{x:9,y:10},{x:8,y:10},{x:7,y:10}]; dir={x:1,y:0};
     function step(){
       prevHead = {x:snake[0].x, y:snake[0].y};
       if(inputQueue.length) dir = inputQueue.shift();   // consume one queued turn per tick
-      const head={x:snake[0].x+dir.x, y:snake[0].y+dir.y};
-      if(head.x<0||head.y<0||head.x>=COLS||head.y>=ROWS){ gameOver(); return; }
+      const head={x:(snake[0].x+dir.x+COLS)%COLS, y:(snake[0].y+dir.y+ROWS)%ROWS};  // wrap around the borders
       for(let i=0;i<snake.length-1;i++){ if(snake[i].x===head.x&&snake[i].y===head.y){ gameOver(); return; } }
 
       snake.unshift(head);
@@ -307,7 +306,7 @@ function reset(){ snake=[{x:9,y:10},{x:8,y:10},{x:7,y:10}]; dir={x:1,y:0};
       overlay.classList.remove('hidden');
       if(type==='start')
         overlay.innerHTML=`<div class="ov-inner"><span class="ov-kicker">arcade terminal</span>
-          <h2 class="ov-title">SNAKE</h2><p class="ov-sub">Eat the apples, grow the line — and don't bite yourself or kiss a wall.</p>
+          <h2 class="ov-title">SNAKE</h2><p class="ov-sub">Eat the apples, grow the line — the borders wrap around, so the only thing that bites back is your own tail.</p>
           <button class="btn btn-primary" id="ovBtn">▶ &nbsp;Start</button>
           <span class="ov-hint">press any arrow key to begin</span></div>`;
       else if(type==='pause')
