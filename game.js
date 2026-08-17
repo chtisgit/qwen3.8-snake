@@ -8,10 +8,29 @@
     const COLS = 21, ROWS = 21;
     const BASE_INTERVAL = 140, MIN_INTERVAL = 80, STEP = 2;
 
+    // ---- levels -------------------------------------------------------------
+    // Each level describes where the snake starts, its first food, and the
+    // solid wall cells on the board. Hitting a wall (or your own tail) kills.
+    const LEVELS = [
+      {
+        name: 'Open Field',
+        snake: [{x:9,y:10},{x:8,y:10},{x:7,y:10}],
+        food:  {x:14,y:10},
+        walls: [
+          // small test wall
+          {x:9,y:4},{x:10,y:4},{x:11,y:4},{x:12,y:4},
+        ],
+      },
+    ];
+    const LEVEL = LEVELS[0];
+    const wallSet = new Set(LEVEL.walls.map(w => w.x+','+w.y));
+    function isWall(x,y){ return wallSet.has(x+','+y); }
+    function spawnSnake(){ return LEVEL.snake.map(c => ({x:c.x,y:c.y})); }
+
     // ---- state (initialized up front so the first draw never sees undefined) ----
-    let snake = [{x:9,y:10},{x:8,y:10},{x:7,y:10}];
+    let snake = spawnSnake();
     let dir = {x:1,y:0};
-    let food = {x:14,y:10};
+    let food = {x:LEVEL.food.x,y:LEVEL.food.y};
     let score = 0, best = 0, eaten = 0;
     let interval = BASE_INTERVAL, speedMult = '1';
     let running=false, paused=false, over=false, started=false;
@@ -55,10 +74,10 @@
 
     // ---- logic ----
     function freeCells(){ const occ=new Set(snake.map(s=>s.x+','+s.y)); occ.add(food.x+','+food.y);
-      const a=[]; for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){const k=x+','+y; if(!occ.has(k))a.push({x,y});} return a; }
+      const a=[]; for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){const k=x+','+y; if(!occ.has(k)&&!wallSet.has(k))a.push({x,y});} return a; }
     function placeFood(){ const c=freeCells(); food = c.length?c[(Math.random()*c.length)|0]:{x:-1,y:-1}; }
 
-function reset(){ snake=[{x:9,y:10},{x:8,y:10},{x:7,y:10}]; dir={x:1,y:0};
+function reset(){ snake=spawnSnake(); dir={x:1,y:0};
   inputQueue=[]; score=0; eaten=0; interval=BASE_INTERVAL; speedMult='1'; prevHead=null; particles=[]; placeFood(); updateStats(); }
 
     function start(){ ensureAudio(); sfx.start(); reset(); running=true; paused=false; over=false; started=true; hideOverlay(); lastStep=performance.now(); }
@@ -69,6 +88,7 @@ function reset(){ snake=[{x:9,y:10},{x:8,y:10},{x:7,y:10}]; dir={x:1,y:0};
       prevHead = {x:snake[0].x, y:snake[0].y};
       if(inputQueue.length) dir = inputQueue.shift();   // consume one queued turn per tick
       const head={x:(snake[0].x+dir.x+COLS)%COLS, y:(snake[0].y+dir.y+ROWS)%ROWS};  // wrap around the borders
+      if(isWall(head.x,head.y)){ gameOver(); return; }                             // solid walls kill
       for(let i=0;i<snake.length-1;i++){ if(snake[i].x===head.x&&snake[i].y===head.y){ gameOver(); return; } }
 
       snake.unshift(head);
@@ -92,6 +112,19 @@ function reset(){ snake=[{x:9,y:10},{x:8,y:10},{x:7,y:10}]; dir={x:1,y:0};
       if(!ctx) return;
       ctx.clearRect(0,0,boardSize,boardSize);
       for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){ if((x+y)%2===0){ ctx.fillStyle='rgba(94,240,168,.035)'; ctx.fillRect(x*cell,y*cell,cell,cell); } }
+
+      for(const w of LEVEL.walls){
+        const px=w.x*cell, py=w.y*cell, pad=cell*.12, r=cell*.22;
+        ctx.save();
+        ctx.shadowColor='rgba(255,150,110,.55)'; ctx.shadowBlur=cell*.5;
+        const grd=ctx.createLinearGradient(px,py,px,py+cell);
+        grd.addColorStop(0,'#5c6a72'); grd.addColorStop(1,'#313d44');
+        ctx.fillStyle=grd;
+        roundRect(px+pad,py+pad,cell-2*pad,cell-2*pad,r); ctx.fill();
+        ctx.shadowBlur=0; ctx.fillStyle='rgba(255,255,255,.10)';
+        roundRect(px+pad,py+pad,cell-2*pad,(cell-2*pad)*.42,r); ctx.fill();
+        ctx.restore();
+      }
 
       if(food && food.x>=0){
         const fx=(food.x+.5)*cell, fy=(food.y+.5)*cell;
