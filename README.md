@@ -68,6 +68,11 @@ Then open http://localhost:8000.
 - **Tune difficulty** — change `BASE_INTERVAL`, `MIN_INTERVAL`, and `STEP` at the top of the game logic.
 - **Board size** — `COLS` / `ROWS` set the grid dimensions.
 
+## 📝 Credits
+
+- **Game code** — written by **Qwen3.8** (specifically `Qwen3.8-27B-UD-Q3_K_XL` by [unsloth](https://github.com/unsloth)).
+- **README.md** — authored by **Ternary Bonsai 2** (specifically `Ternary-Bonsai-2-27B-PTQ1_0` by [PrismLM](https://prism-ai.com)).
+
 ## 📄 License
 
 Not specified — all code in this repository is provided as-is.
