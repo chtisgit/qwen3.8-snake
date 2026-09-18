@@ -11,29 +11,69 @@
     // ---- levels -------------------------------------------------------------
     // Each level describes where the snake starts, its first food, and the
     // solid wall cells on the board. Hitting a wall (or your own tail) kills.
+    const SPAWN = { snake:[{x:9,y:10},{x:8,y:10},{x:7,y:10}], food:{x:14,y:10} };
+    const hline=(y,x0,x1)=>{ const a=[]; for(let x=x0;x<=x1;x++) a.push({x,y}); return a; };
+    const vline=(x,y0,y1)=>{ const a=[]; for(let y=y0;y<=y1;y++) a.push({x,y}); return a; };
+    const square=(x,y,s)=>{ const a=[]; for(let dy=0;dy<s;dy++) for(let dx=0;dx<s;dx++) a.push({x:x+dx,y:y+dy}); return a; };
+    // 7x7 hollow ring around (cx,cy); the middle 3 cells of the two opposite
+    // sides are left open -> six one-cell entrances and a roomy 5x5 interior
+    const openRing=(cx,cy,openA,openB)=>{
+      const a=[]; const skip=(dx,dy)=>
+        (dy===-3&&(openA==='top'||openB==='top')&&Math.abs(dx)<=1) ||
+        (dy=== 3&&(openA==='bottom'||openB==='bottom')&&Math.abs(dx)<=1) ||
+        (dx===-3&&(openA==='left'||openB==='left')&&Math.abs(dy)<=1) ||
+        (dx=== 3&&(openA==='right'||openB==='right')&&Math.abs(dy)<=1);
+      for(let dy=-3;dy<=3;dy++) for(let dx=-3;dx<=3;dx++){
+        if(Math.max(Math.abs(dx),Math.abs(dy))<3) continue;
+        if(skip(dx,dy)) continue;
+        a.push({x:cx+dx,y:cy+dy});
+      }
+      return a;
+    };
     const LEVELS = [
-      {
-        name: 'Open Field',
-        snake: [{x:9,y:10},{x:8,y:10},{x:7,y:10}],
-        food:  {x:14,y:10},
-        walls: [
-          // small test wall
-          {x:9,y:4},{x:10,y:4},{x:11,y:4},{x:12,y:4},
-        ],
-      },
+      { name:'Open Field', desc:'No walls at all — just you, the apples and your own tail.',
+        ...SPAWN, walls:[] },
+      { name:'The Cage', desc:'Solid walls on every border. Wrapping is no escape here.',
+        ...SPAWN, walls:[
+          ...hline(0,0,COLS-1), ...hline(ROWS-1,0,COLS-1),
+          ...vline(0,1,ROWS-2), ...vline(COLS-1,1,ROWS-2),
+        ] },
+      { name:'Four Blocks', desc:'Four solid blocks anchored in the four quadrants.',
+        ...SPAWN, walls:[
+          ...square(4,4,3), ...square(14,4,3),
+          ...square(4,14,3), ...square(14,14,3),
+        ] },
+      { name:'Labyrinth', desc:'Gapped borders and broken squares — thread the holes.',
+        ...SPAWN, walls:[
+          ...hline(0,1,7),  ...hline(0,13,19),
+          ...hline(ROWS-1,1,7), ...hline(ROWS-1,13,19),
+          ...vline(0,1,7),  ...vline(0,13,19),
+          ...vline(COLS-1,1,7), ...vline(COLS-1,13,19),
+          {x:0,y:0}, {x:COLS-1,y:0}, {x:0,y:ROWS-1}, {x:COLS-1,y:ROWS-1}, // seal the isolated corners
+          ...openRing(5,5,'bottom','top'), ...openRing(15,5,'left','right'),
+          ...openRing(5,15,'top','bottom'), ...openRing(15,15,'right','left'),
+        ] },
     ];
-    const LEVEL = LEVELS[0];
-    const wallSet = new Set(LEVEL.walls.map(w => w.x+','+w.y));
+    let levelIndex=0, level=LEVELS[0];
+    let wallSet = new Set(level.walls.map(w => w.x+','+w.y));
+    function setLevel(i){ levelIndex=i; level=LEVELS[i]; wallSet=new Set(level.walls.map(w => w.x+','+w.y)); }
+    function selectLevel(i){
+      if(i<0||i>=LEVELS.length) return;
+      setLevel(i);
+      try{ localStorage.setItem('snake.level', String(i)); }catch(e){}
+      if(started) reset();                                    // refresh the board preview behind the overlay
+      if(!overlay.classList.contains('hidden')) showOverlay(overlay.dataset.kind||'start');
+    }
     function isWall(x,y){ return wallSet.has(x+','+y); }
-    function spawnSnake(){ return LEVEL.snake.map(c => ({x:c.x,y:c.y})); }
+    function spawnSnake(){ return level.snake.map(c => ({x:c.x,y:c.y})); }
 
     // ---- state (initialized up front so the first draw never sees undefined) ----
     let snake = spawnSnake();
     let dir = {x:1,y:0};
-    let food = {x:LEVEL.food.x,y:LEVEL.food.y};
+    let food = {x:SPAWN.food.x,y:SPAWN.food.y};
     let score = 0, best = 0, eaten = 0;
     let interval = BASE_INTERVAL, speedMult = '1';
-    let running=false, paused=false, over=false, started=false;
+    let running=false, paused=false, over=false, started=false, selecting=false;
     let prevHead=null, lastStep=0;
     let particles=[], flash=0, foodPulse=0;
     let inputQueue = [];
@@ -113,7 +153,7 @@ function reset(){ snake=spawnSnake(); dir={x:1,y:0};
       ctx.clearRect(0,0,boardSize,boardSize);
       for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){ if((x+y)%2===0){ ctx.fillStyle='rgba(94,240,168,.035)'; ctx.fillRect(x*cell,y*cell,cell,cell); } }
 
-      for(const w of LEVEL.walls){
+      for(const w of level.walls){
         const px=w.x*cell, py=w.y*cell, pad=cell*.12, r=cell*.22;
         ctx.save();
         ctx.shadowColor='rgba(255,150,110,.55)'; ctx.shadowBlur=cell*.5;
@@ -174,20 +214,34 @@ function reset(){ snake=spawnSnake(); dir={x:1,y:0};
     function updateStats(bumpScore){ elScore.textContent=score; elBest.textContent=best; elSpeed.textContent=speedMult+'×';
       if(bumpScore){ const s=elScore.closest('.stat'); s.classList.remove('bump'); void s.offsetWidth; s.classList.add('bump'); } }
 
+    function levelButtonsHtml(){
+      return `<div class="level-pick" role="group" aria-label="Choose a level">` +
+        LEVELS.map((L,i)=>`<button class="lvl${i===levelIndex?' on':''}" data-lvl="${i}" aria-label="Level ${i+1}: ${L.name}">
+          <span class="lvl-num">${i+1}</span><span class="lvl-name">${L.name}</span></button>`).join('') +
+        `</div>`;
+    }
+    function bindLevelButtons(){
+      overlay.querySelectorAll('.lvl').forEach(b=>b.addEventListener('click',()=>selectLevel(+b.dataset.lvl)));
+    }
+
     function showOverlay(type){
+      overlay.dataset.kind=type;
       overlay.classList.remove('hidden');
       if(type==='start')
         overlay.innerHTML=`<div class="ov-inner"><span class="ov-kicker">arcade terminal</span>
           <h2 class="ov-title">SNAKE</h2><p class="ov-sub">Eat the apples, grow the line — the borders wrap around, so the only thing that bites back is your own tail.</p>
+          ${levelButtonsHtml()}
           <button class="btn btn-primary" id="ovBtn">▶ &nbsp;Start</button>
-          <span class="ov-hint">press any arrow key to begin</span></div>`;
+          <span class="ov-hint">press 1–4 or click a level · any arrow key to begin</span></div>`;
       else if(type==='pause')
         overlay.innerHTML=`<div class="ov-inner"><span class="ov-kicker">paused</span><h2 class="ov-title">PAUSED</h2>
           <button class="btn btn-primary" id="ovBtn">Resume</button><span class="ov-hint">press space to continue</span></div>`;
       else if(type==='over')
         overlay.innerHTML=`<div class="ov-inner"><span class="ov-kicker">game over</span><h2 class="ov-title">GAME OVER</h2>
           <p class="ov-score">${score} PTS${score>=best&&score>0?'  · NEW BEST':''}</p>
+          ${levelButtonsHtml()}
           <button class="btn btn-primary" id="ovBtn">↻ &nbsp;Play again</button><span class="ov-hint">or press space / enter</span></div>`;
+      bindLevelButtons();
       document.getElementById('ovBtn').addEventListener('click',()=>{ if(type==='pause') resumeGame(); else start(); });
     }
     function hideOverlay(){ overlay.classList.add('hidden'); }
@@ -205,6 +259,8 @@ function reset(){ snake=spawnSnake(); dir={x:1,y:0};
     window.addEventListener('keydown',e=>{
       if(e.code==='Space'){ e.preventDefault(); if(!started||over) start(); else paused?resumeGame():pauseGame(); return; }
       if(e.code==='Enter' && over){ start(); return; }
+      if(/^(Digit|Numpad)[1-4]$/.test(e.code)){ const i=+(e.code.slice(-1))-1;
+        if(!started||over) selectLevel(i); return; }   // pick a level before (or between) runs
       const d=KEYMAP[e.code]; if(d){ e.preventDefault(); ensureAudio();
         if(!started||over) start();
         setDir(d[0],d[1]); }
@@ -226,6 +282,7 @@ function reset(){ snake=spawnSnake(); dir={x:1,y:0};
 
     // ---- boot (order matters: size → state → UI → loop) ----
     try { best = parseInt(localStorage.getItem('snake.best')||'0',10)||0; } catch(e){ best=0; }
+    { const li=parseInt(localStorage.getItem('snake.level'),10); if(li>=0&&li<LEVELS.length) setLevel(li); }
     resize();
     reset();          // defines food + snake before any draw
     updateStats();

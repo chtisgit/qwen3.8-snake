@@ -77,6 +77,21 @@
   .ov-score{ font-family:"Press Start 2P",monospace; font-size:15px; color:#ffcf7d; letter-spacing:.04em }
   .ov-hint{ font-size:12px; color:var(--muted); letter-spacing:.06em }
 
+  /* level picker */
+  .level-pick{ display:flex; gap:8px; width:100%; justify-content:center }
+  .lvl{ flex:1; max-width:150px; display:flex; align-items:center; gap:9px; padding:10px 12px; border-radius:12px;
+    background:var(--panel); border:1px solid var(--line); color:#cfeee2; cursor:pointer; transition:.18s; text-align:left }
+  .lvl:hover{ transform:translateY(-2px); border-color:rgba(94,240,168,.5) }
+  .lvl.on{ border-color:#5ef0a8; background:rgba(94,240,168,.14); box-shadow:0 0 0 1px rgba(94,240,168,.4), 0 0 22px -6px rgba(94,240,168,.6) }
+  .lvl-num{ font-family:"Press Start 2P",monospace; font-size:13px; color:#8fd6bd; flex:none;
+    width:24px; height:24px; display:grid; place-items:center; border-radius:7px; background:rgba(94,240,168,.1); border:1px solid var(--line) }
+  .lvl.on .lvl-num{ color:#06231c; background:#5ef0a8; border-color:transparent }
+  .lvl-name{ font-size:12.5px; font-weight:600; letter-spacing:.04em; line-height:1.25 }
+  @media (max-width:560px){
+    .level-pick{ display:grid; grid-template-columns:1fr 1fr; width:min(100%,420px) }
+    .lvl{ max-width:none }
+  }
+
   .btn{ font-family:"Space Grotesk"; font-weight:700; letter-spacing:.05em; text-transform:uppercase; font-size:13px;
     padding:13px 24px; border-radius:12px; cursor:pointer; transition:.18s; border:1px solid transparent }
   .btn-primary{ color:#06231c; background:linear-gradient(180deg,#7fffc6,#35d99a); box-shadow:0 10px 24px -8px rgba(53,217,154,.7) }
