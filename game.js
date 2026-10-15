@@ -115,10 +115,10 @@
     // ---- logic ----
     function freeCells(){ const occ=new Set(snake.map(s=>s.x+','+s.y)); occ.add(food.x+','+food.y);
       const a=[]; for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){const k=x+','+y; if(!occ.has(k)&&!wallSet.has(k))a.push({x,y});} return a; }
-    function placeFood(){ const c=freeCells(); food = c.length?c[(Math.random()*c.length)|0]:{x:-1,y:-1}; }
+    function placeFood(){ const c=freeCells(); if(c.length){ food=c[(Math.random()*c.length)|0]; } else { gameOver(); } }
 
-function reset(){ snake=spawnSnake(); dir={x:1,y:0};
-  inputQueue=[]; score=0; eaten=0; interval=BASE_INTERVAL; speedMult='1'; prevHead=null; particles=[]; placeFood(); updateStats(); }
+    function reset(){ snake=spawnSnake(); dir={x:1,y:0};
+      inputQueue=[]; score=0; eaten=0; interval=BASE_INTERVAL; speedMult='1'; prevHead=null; particles=[]; placeFood(); updateStats(); }
 
     function start(){ ensureAudio(); sfx.start(); reset(); running=true; paused=false; over=false; started=true; hideOverlay(); lastStep=performance.now(); }
     function pauseGame(){ if(!running||over) return; paused=true; showOverlay('pause'); }
@@ -146,7 +146,7 @@ function reset(){ snake=spawnSnake(); dir={x:1,y:0};
     function updateParticles(){ for(let i=particles.length-1;i>=0;i--){ const p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.vx*=.94; p.vy*=.94; p.life-=p.decay; if(p.life<=0) particles.splice(i,1); } }
 
     // ---- drawing ----
-    function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+    function roundRect(x,y,w,h,r){ ctx.roundRect(x,y,w,h,r); }
 
     function draw(){
       if(!ctx) return;
@@ -206,13 +206,13 @@ function reset(){ snake=spawnSnake(); dir={x:1,y:0};
     function frame(t){
       requestAnimationFrame(frame);
       foodPulse++; updateParticles(); if(flash>0) flash=Math.max(0,flash-.045);
-      if(running && !paused){ while(t-lastStep>=interval){ lastStep+=interval; step(); if(!running) break; } }
+      if(running && !paused){ let dt=t-lastStep; if(dt>interval*10) lastStep=t-interval*10; while(t-lastStep>=interval){ lastStep+=interval; step(); if(!running) break; } }
       draw();
     }
 
     // ---- UI ----
     function updateStats(bumpScore){ elScore.textContent=score; elBest.textContent=best; elSpeed.textContent=speedMult+'×';
-      if(bumpScore){ const s=elScore.closest('.stat'); s.classList.remove('bump'); void s.offsetWidth; s.classList.add('bump'); } }
+      if(bumpScore){ const s=elScore.closest('.stat'); s.classList.remove('bump'); s.classList.add('bump'); } }
 
     function levelButtonsHtml(){
       return `<div class="level-pick" role="group" aria-label="Choose a level">` +
